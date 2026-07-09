@@ -6,11 +6,9 @@ export async function loadFavoriteIds(): Promise<string[]> {
   try {
     const raw = await AsyncStorage.getItem(FAVORITES_KEY);
     if (!raw) return [];
-
     const parsed = JSON.parse(raw) as unknown;
-
     return Array.isArray(parsed)
-      ? parsed.filter((id: unknown): id is string => typeof id === "string")
+      ? parsed.filter((id): id is string => typeof id === "string")
       : [];
   } catch {
     return [];
@@ -20,7 +18,28 @@ export async function loadFavoriteIds(): Promise<string[]> {
 export async function saveFavoriteIds(ids: string[]): Promise<void> {
   try {
     await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(ids));
-  } catch (error) {
-    console.error("Errore durante il salvataggio dei preferiti:", error);
+  } catch {
+
+  }
+}
+
+export const THEME_KEY = "app:v1:theme";
+
+export type ThemeMode = "light" | "dark";
+
+export async function loadThemeMode(): Promise<ThemeMode | null> {
+  try {
+    const raw = await AsyncStorage.getItem(THEME_KEY);
+    return raw === "light" || raw === "dark" ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveThemeMode(mode: ThemeMode): Promise<void> {
+  try {
+    await AsyncStorage.setItem(THEME_KEY, mode);
+  } catch {
+
   }
 }

@@ -1,114 +1,95 @@
-import React from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { useAuth } from "../context/AuthContext";
+import React, { useState } from "react";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { validateLogin } from "../services/auth";
 
-export default function LoginScreen() {
-  const { login } = useAuth();
-  const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [submitted, setSubmitted] = React.useState(false);
-  const [authError, setAuthError] = React.useState(false);
+type LoginScreenProps = {
+  navigation: any;
+};
+
+export default function LoginScreen({ navigation }: LoginScreenProps) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
 
   const emailOk = email.includes("@");
   const passwordOk = password.length >= 6;
-  const canSubmit = emailOk && passwordOk;
+  const formOk = emailOk && passwordOk;
 
-  function handleSubmit() {
+  function submit() {
     setSubmitted(true);
-    if (!canSubmit) return;
-    const ok = login(email, password);
-    setAuthError(!ok);
+    setError("");
+    
+    if (formOk) {
+      const user = validateLogin(email, password);
+      if (user) {
+        navigation.replace("Home", { user });
+      } else {
+        setError("Email o password non validi");
+      }
+    }
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View style={styles.container}>
-        <Text style={styles.title}>Italian Meals App</Text>
-        <Text style={styles.subtitle}>Accedi per continuare</Text>
+    <View style={s.container}>
+      <Text style={s.title}>Sign in</Text>
 
-        <TextInput
-          value={email}
-          onChangeText={(text) => {
-            setEmail(text);
-            setAuthError(false);
-          }}
-          placeholder="Email"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          style={styles.input}
-        />
-        {submitted && !emailOk && (
-          <Text style={styles.error}>L'email deve contenere @</Text>
-        )}
+      <TextInput
+        style={s.input}
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
+      {submitted && !emailOk && (
+        <Text style={s.error}>Email non valida (manca @)</Text>
+      )}
 
-        <TextInput
-          value={password}
-          onChangeText={(text) => {
-            setPassword(text);
-            setAuthError(false);
-          }}
-          placeholder="Password"
-          secureTextEntry
-          style={styles.input}
-        />
-        {submitted && !passwordOk && (
-          <Text style={styles.error}>Minimo 6 caratteri</Text>
-        )}
+      <TextInput
+        style={s.input}
+        placeholder="Password (min 6 caratteri)"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+      />
+      {submitted && !passwordOk && (
+        <Text style={s.error}>Troppo corta (min 6 caratteri)</Text>
+      )}
 
-        {submitted && canSubmit && authError && (
-          <Text style={styles.error}>Email o password non corrette</Text>
-        )}
+      {error && <Text style={s.error}>{error}</Text>}
 
-        <Pressable
-          onPress={handleSubmit}
-          style={[styles.button, submitted && !canSubmit && styles.buttonDisabled]}
-        >
-          <Text style={styles.buttonText}>Accedi</Text>
-        </Pressable>
-
-        <Text style={styles.hint}>
-          Demo: mario.rossi@student.it / React2026!
-        </Text>
-      </View>
-    </KeyboardAvoidingView>
+      <TouchableOpacity
+        style={[s.btn, !formOk && s.btnDisabled]}
+        disabled={!formOk}
+        onPress={submit}
+      >
+        <Text style={s.btnText}>Accedi</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: "#fffaf5" },
-  container: { flex: 1, padding: 24, gap: 10, justifyContent: "center" },
-  title: { fontSize: 24, fontWeight: "700", color: "#2f2a24" },
-  subtitle: { fontSize: 14, color: "#7a6f65", marginBottom: 12 },
+const s = StyleSheet.create({
+  container: { flex: 1, justifyContent: "center", padding: 24 },
+  title: { fontSize: 26, fontWeight: "500", marginBottom: 24 },
   input: {
     borderWidth: 1,
-    borderColor: "#f2d2a2",
+    borderColor: "#000000",
     borderRadius: 8,
     padding: 12,
-    backgroundColor: "#ffffff",
+    marginBottom: 8,
+    fontSize: 16,
   },
-  error: { color: "#b42318", fontSize: 13 },
-  button: {
-    marginTop: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+  error: { color: "#f71010", fontSize: 13, marginBottom: 8 },
+  btn: {
+    backgroundColor: "#0f0000",
+    padding: 14,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#f0b46e",
     alignItems: "center",
-    backgroundColor: "#fff2e2",
+    marginTop: 8,
   },
-  buttonDisabled: { opacity: 0.4 },
-  buttonText: { fontWeight: "700", color: "#8a4b12" },
-  hint: { marginTop: 14, fontSize: 12, color: "#a59a8e", textAlign: "center" },
+  btnDisabled: { opacity: 0.4 },
+  btnText: { color: "#ffffff", fontWeight: "500", fontSize: 16 },
+  success: { color: "#2b1919", textAlign: "center", marginTop: 12 },
 });

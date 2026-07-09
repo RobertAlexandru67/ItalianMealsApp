@@ -1,48 +1,44 @@
 import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import FavoriteButton from "./FavoriteButton";
+import { Image, Pressable, Text, View } from "react-native";
+import { useTheme } from "../context/ThemeContext";
+import { createSharedStyles } from "../theme/style";
+import FavoriteButton from "./Button";
 
-export interface MealCardItem {
-  idMeal: string;
-  strMeal: string;
-  strMealThumb: string;
-}
+type Props = {
+  meal: { idMeal: string; strMeal: string; strMealThumb: string };
+  onPress: () => void;
+  style?: any;
+};
 
-interface MealCardProps {
-  item: MealCardItem;
-  onPress: (idMeal: string) => void;
-}
+export default function MealCard({ meal, onPress, style }: Props) {
+  const { theme } = useTheme();
+  const styles = createSharedStyles(theme);
 
-export default function MealCard({ item, onPress }: MealCardProps) {
   return (
-    <Pressable onPress={() => onPress(item.idMeal)}>
-      <View style={styles.row}>
-        <Image source={{ uri: item.strMealThumb }} style={styles.thumb} />
-        <Text style={styles.mealName} numberOfLines={2}>
-          {item.strMeal}
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Apri ${meal.strMeal}`}
+      style={({ pressed }) => [
+        styles.listItem,
+        style,
+        pressed && styles.pressedFeedback,
+      ]}
+    >
+      <Image source={{ uri: meal.strMealThumb }} style={styles.thumb} />
+      <View style={styles.rowCenter}>
+        <Text
+          style={[styles.listTitle, { paddingHorizontal: 12, paddingVertical: 8 }]}
+          numberOfLines={2}
+          ellipsizeMode="tail"
+          maxFontSizeMultiplier={1.4}
+        >
+          {meal.strMeal}
         </Text>
-        <FavoriteButton idMeal={item.idMeal} />
+        <View style={{ paddingRight: 8 }}>
+          <FavoriteButton id={meal.idMeal} label={meal.strMeal} />
+        </View>
       </View>
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    backgroundColor: "#ffffff",
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  thumb: { width: 56, height: 56, borderRadius: 10 },
-  mealName: { flex: 1, fontWeight: "600", color: "#2f2a24" },
-});

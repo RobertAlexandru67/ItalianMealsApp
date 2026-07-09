@@ -1,97 +1,60 @@
-import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import * as Linking from "expo-linking";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { AuthProvider, useAuth } from "./context/AuthContext";
-import { FavoritesProvider } from "./context/FavoritesContext";
-import LoginScreen from "./screen/LoginScreen";
 import HomeScreen from "./screen/HomeScreen";
 import DetailScreen from "./screen/DetailSceen";
-import FavoritesScreen from "./screen/FavoriteScreen";
-import ProfileScreen from "./screen/ProfileScreen";
+import LoginScreen from "./screen/LoginScreen";
+import AvatarScreen from "./screen/ProfileScreen";
+import FavoriteScreen from "./screen/FavoriteScreen";
 
-// Lab 13/14: param list dello stack, condivisa da tutte le screen
-export type RootStackParamList = {
-  Login: undefined;
-  Home: undefined;
-  Detail: { mealId: string };
-  Favorites: undefined;
-  Profile: undefined;
+import { FavoritesProvider } from "./context/Context";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
+
+const Stack = createNativeStackNavigator();
+
+const linking = {
+  prefixes: ["myapp://"],
+  config: {
+    screens: {
+      Home: "home",
+      Details: "dettagli/:id",
+      Avatar: "avatar",
+      Favorites: "preferiti",
+    },
+  },
 };
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
-
+// Lab 19: header dello Stack Navigator adattato al tema attivo
 function RootNavigator() {
-  const { user } = useAuth();
+  const { theme } = useTheme();
 
   return (
-    <Stack.Navigator>
-      {user ? (
-        <>
-          <Stack.Screen
-            name="Home"
-            component={HomeScreen}
-            options={{ title: "Piatti italiani" }}
-          />
-          <Stack.Screen
-            name="Detail"
-            component={DetailScreen}
-            options={{ title: "Dettaglio" }}
-          />
-          <Stack.Screen
-            name="Favorites"
-            component={FavoritesScreen}
-            options={{ title: "I tuoi preferiti" }}
-          />
-          <Stack.Screen
-            name="Profile"
-            component={ProfileScreen}
-            options={{ title: "Profilo" }}
-          />
-        </>
-      ) : (
+    <NavigationContainer linking={linking}>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: { backgroundColor: theme.colors.card },
+          headerTintColor: theme.colors.text,
+        }}
+      >
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Avatar" component={AvatarScreen} options={{ title: "Profilo" }} />
+        <Stack.Screen name="Details" component={DetailScreen} options={{ title: "Dettaglio" }} />
         <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-          options={{ headerShown: false }}
+          name="Favorites"
+          component={FavoriteScreen}
+          options={{ title: "Preferiti" }}
         />
-      )}
-    </Stack.Navigator>
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
 export default function App() {
-  const linking = React.useMemo(() => {
-    let expoPrefix = "italianmealsapp://";
-    try {
-      expoPrefix = Linking.createURL("/");
-    } catch {
-      
-    }
-    return {
-      prefixes: Array.from(new Set([expoPrefix, "italianmealsapp://"])),
-      config: {
-        screens: {
-          Login: "login",
-          Home: "home",
-          Detail: "details/:mealId",
-          Favorites: "favorites",
-          Profile: "profile",
-        },
-      },
-    };
-  }, []);
-
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        <FavoritesProvider>
-          <NavigationContainer linking={linking}>
-            <RootNavigator />
-          </NavigationContainer>
-        </FavoritesProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <ThemeProvider>
+      <FavoritesProvider>
+        <RootNavigator />
+      </FavoritesProvider>
+    </ThemeProvider>
   );
 }

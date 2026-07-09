@@ -1,113 +1,185 @@
-import React from "react";
+import React, { useEffect, useLayoutEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
-  Pressable,
-  StyleSheet,
   Text,
+  TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import MealCard from "../components/MealCard";
-import { useFavorites } from "../context/FavoritesContext";
-import { useAuth } from "../context/AuthContext";
+import { useFavorites } from "../context/Context";
+import { useTheme } from "../context/ThemeContext";
+import { createSharedStyles } from "../theme/style";
+import { spacing } from "../theme/colors";
 import { fetchItalianMeals } from "../services/mealsApi";
-import type { RootStackParamList } from "../App";
 
-export interface MealSummary {
-  idMeal: string;
-  strMeal: string;
-  strMealThumb: string;
-}
+const WIDE_BREAKPOINT = 600;
 
-type Props = NativeStackScreenProps<RootStackParamList, "Home">;
+export default function HomeScreen({ navigation }: any) {
+  const [status, setStatus] = useState<"loading" | "error" | "success">("loading");
+  const [items, setItems] = useState<any[]>([]);
+  const [message, setMessage] = useState("");
+  const [viewMode, setViewMode] = useState<"all" | "favorites">("all");
+  const { favoriteIds, isLoading: favoritesLoading } = useFavorites();
+  const { theme } = useTheme();
+  const styles = createSharedStyles(theme);
+  const { width } = useWindowDimensions();
+  const isWide = width >= WIDE_BREAKPOINT;
+  const numColumns = isWide ? 2 : 1;
 
-export default function HomeScreen({ navigation }: Props) {
-  // Lab 17: preferiti dal Context
-  const { favoriteIds } = useFavorites();
-  // Login: utente loggato dal Context, per mostrare l'avatar nell'header
-  const { user } = useAuth();
+  const visibleItems =
+    viewMode === "favorites"
+      ? items.filter((item) => favoriteIds.includes(item.idMeal))
+      : items;
 
-  const [state, setState] = React.useState<{
-    status: "idle" | "loading" | "success" | "error";
-    items: MealSummary[];
-    message: string;
-  }>({
-    status: "idle",
-    items: [],
-    message: "",
-  });
-
-  const loadMeals = React.useCallback(async () => {
-    setState({ status: "loading", items: [], message: "" });
+  async function loadMeals() {
+    setStatus("loading");
     try {
       const data = await fetchItalianMeals();
-      setState({ status: "success", items: data, message: "" });
-    } catch {
-      setState({
-        status: "error",
-        items: [],
-        message: "Caricamento fallito. Controlla la connessione.",
-      });
+      if (data.length === 0) {
+        setStatus("error");
+        setMessage("Nessun piatto italiano disponibile");
+      } else {
+        setItems(data);
+        setStatus("success");
+      }
+    } catch (e: any) {
+      setStatus("error");
+      setMessage(e.message ?? "Errore di rete");
     }
+  }
+
+  useEffect(() => {
+    loadMeals();
   }, []);
 
-  React.useEffect(() => {
-    loadMeals();
-  }, [loadMeals]);
-
-  // Avatar utente + contatore preferiti nell'header dello stack (lab 13 style)
-  React.useLayoutEffect(() => {
+  useLayoutEffect(() => {
     navigation.setOptions({
+      title: "Italian Meals",
       headerRight: () => (
-        <View style={styles.headerRight}>
-          <Pressable
-            style={styles.favBadge}
+        <View style={{ flexDirection: "row" }}>
+          <TouchableOpacity
             onPress={() => navigation.navigate("Favorites")}
+            style={{ marginRight: 8, padding: 4 }}
+            accessibilityRole="button"
+            accessibilityLabel="Vai ai preferiti"
           >
-            <Text style={styles.favBadgeText}>{`♥ ${favoriteIds.length}`}</Text>
-          </Pressable>
-          <Pressable onPress={() => navigation.navigate("Profile")}>
-            <Image source={{ uri: user?.avatarUri }} style={styles.avatar} />
-          </Pressable>
+            <Text style={{ fontSize: 20 }}>♥</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Avatar")}
+            style={{ marginRight: 12, padding: 4 }}
+            accessibilityRole="button"
+            accessibilityLabel="Vai al profilo"
+          >
+            <Text style={{ fontSize: 20 }}>👤</Text>
+          </TouchableOpacity>
         </View>
       ),
     });
-  }, [navigation, favoriteIds.length, user]);
+  }, [navigation]);
 
-  if (state.status === "error") {
+  if (status === "loading" || favoritesLoading) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.error}>{state.message}</Text>
-        <Pressable style={styles.button} onPress={loadMeals}>
-          <Text style={styles.buttonText}>Retry</Text>
-        </Pressable>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.error}>{message}</Text>
+        <TouchableOpacity style={styles.btn} onPress={loadMeals} accessibilityRole="button">
+          <Text style={styles.btnText}>Riprova</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Piatti italiani</Text>
-      <Text style={styles.subtitle}>
-        Preferiti salvati: {favoriteIds.length} (chiave app:v1:favs)
-      </Text>
+    <View style={styles.screen}>
+      <View
+        style={{
+          flexDirection: "row",
+          paddingHorizontal: spacing.md,
+          paddingTop: spacing.sm + spacing.xs,
+          gap: spacing.sm,
+        }}
+      >
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: theme.colors.primary,
+            paddingVertical: 10,
+            alignItems: "center",
+            backgroundColor: viewMode === "all" ? theme.colors.primary : "transparent",
+          }}
+          onPress={() => setViewMode("all")}
+          accessibilityRole="button"
+          accessibilityLabel="Mostra lista completa"
+        >
+          <Text
+            style={{
+              color: viewMode === "all" ? theme.colors.primaryText : theme.colors.primary,
+              fontWeight: "600",
+            }}
+            maxFontSizeMultiplier={1.4}
+          >
+            Lista completa
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: theme.colors.primary,
+            paddingVertical: 10,
+            alignItems: "center",
+            backgroundColor: viewMode === "favorites" ? theme.colors.primary : "transparent",
+          }}
+          onPress={() => setViewMode("favorites")}
+          accessibilityRole="button"
+          accessibilityLabel="Mostra solo preferiti"
+        >
+          <Text
+            style={{
+              color: viewMode === "favorites" ? theme.colors.primaryText : theme.colors.primary,
+              fontWeight: "600",
+            }}
+            maxFontSizeMultiplier={1.4}
+          >
+            Solo preferiti
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-      {state.status === "loading" ? (
-        <View style={styles.centered}>
-          <ActivityIndicator />
-          <Text>Caricamento...</Text>
+      {visibleItems.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText} maxFontSizeMultiplier={1.4}>
+            {viewMode === "favorites"
+              ? "Nessun preferito ancora. Tocca ♡ su un piatto dalla lista."
+              : "Nessun piatto trovato."}
+          </Text>
         </View>
       ) : (
         <FlatList
-          data={state.items}
+          key={numColumns}
+          contentContainerStyle={styles.flatListContent}
+          columnWrapperStyle={isWide ? styles.columnWrapper : undefined}
+          numColumns={numColumns}
+          data={visibleItems}
           keyExtractor={(item) => item.idMeal}
-          contentContainerStyle={{ gap: 4 }}
           renderItem={({ item }) => (
             <MealCard
-              item={item}
-              onPress={(idMeal) => navigation.navigate("Detail", { mealId: idMeal })}
+              meal={item}
+              onPress={() => navigation.navigate("Details", { id: item.idMeal })}
+              style={isWide ? styles.listItemHalf : undefined}
             />
           )}
         />
@@ -115,67 +187,3 @@ export default function HomeScreen({ navigation }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 18,
-    gap: 12,
-    backgroundColor: "#fffaf5",
-  },
-  centered: {
-    flex: 1,
-    padding: 16,
-    gap: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#2f2a24",
-  },
-  subtitle: {
-    color: "#7a6f65",
-    fontSize: 13,
-  },
-  error: {
-    color: "#b42318",
-    fontWeight: "600",
-  },
-  button: {
-    alignSelf: "flex-start",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderRadius: 999,
-    borderColor: "#f0b46e",
-    backgroundColor: "#fff2e2",
-  },
-  buttonText: {
-    fontWeight: "600",
-    color: "#8a4b12",
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginRight: 4,
-  },
-  favBadge: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#f2d2a2",
-    backgroundColor: "#fff7eb",
-  },
-  favBadgeText: { fontWeight: "700", color: "#c0392b", fontSize: 13 },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#f2d2a2",
-  },
-});

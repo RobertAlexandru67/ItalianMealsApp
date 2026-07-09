@@ -1,84 +1,113 @@
-import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useAuth } from "../context/AuthContext";
-import type { RootStackParamList } from "../App";
+import React, { useState } from "react";
+import { Pressable, Switch, Text, TextInput, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { SettingRow } from "../components/Setting";
+import { useFavorites } from "../context/Context";
+import { useTheme } from "../context/ThemeContext";
+import { createSharedStyles } from "../theme/style";
+import { spacing } from "../theme/colors";
 
-type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
+type ProfileScreenProps = {
+  navigation: any;
+};
 
-export default function ProfileScreen({ navigation }: Props) {
-  const { user, logout } = useAuth();
+export default function ProfileScreen({ navigation }: ProfileScreenProps) {
+  const [name, setName] = useState("");
+  const [notifications, setNotifications] = useState(true);
+  const { favoriteIds } = useFavorites();
+  const { theme, isDark, toggleTheme } = useTheme();
+  const styles = createSharedStyles(theme);
 
-  if (!user) {
-    // Non dovrebbe succedere: Profile esiste solo nello stack autenticato
-    return (
-      <View style={styles.centered}>
-        <Text>Nessun utente loggato.</Text>
-      </View>
-    );
-  }
+  const nameTooShort = name.length > 0 && name.length < 2;
 
   function handleLogout() {
-    logout();
-    // RootNavigator ricalcola lo stack in base a user=null e mostra Login
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Login" }],
+    });
   }
 
   return (
-    <View style={styles.container}>
-      <Image source={{ uri: user.avatarUri }} style={styles.avatar} />
-      <Text style={styles.name}>{user.name}</Text>
-      <Text style={styles.email}>{user.email}</Text>
+    <SafeAreaView style={styles.screen}>
+      <Text style={styles.screenTitle} accessibilityRole="header" maxFontSizeMultiplier={1.4}>
+        Profilo
+      </Text>
 
-      <Pressable style={styles.button} onPress={() => navigation.navigate("Home")}>
-        <Text style={styles.buttonText}>Torna alla lista</Text>
-      </Pressable>
+      <SettingRow
+        label="Name"
+        right={
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="Your name"
+            placeholderTextColor={theme.colors.textSecondary}
+            style={{
+              borderWidth: 1,
+              borderColor: nameTooShort ? theme.colors.danger : theme.colors.border,
+              borderRadius: 8,
+              padding: 6,
+              width: 140,
+              textAlign: "right",
+              color: theme.colors.text,
+            }}
+          />
+        }
+      />
+      {nameTooShort && (
+        <Text
+          style={{ color: theme.colors.danger, fontSize: 12, paddingHorizontal: spacing.md }}
+        >
+          Name is too short
+        </Text>
+      )}
 
-      <Pressable style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Esci</Text>
-      </Pressable>
-    </View>
+      <SettingRow
+        label="Notifications"
+        right={<Switch value={notifications} onValueChange={setNotifications} />}
+      />
+
+      {/* Lab 19: toggle tema scuro persistito via ThemeContext */}
+      <SettingRow
+        label="Tema scuro"
+        right={
+          <Switch
+            value={isDark}
+            onValueChange={toggleTheme}
+            accessibilityLabel="Attiva o disattiva il tema scuro"
+          />
+        }
+      />
+
+      <SettingRow
+        label="Preferiti salvati"
+        right={
+          <Text style={{ color: theme.colors.text, fontWeight: "600" }} maxFontSizeMultiplier={1.4}>
+            {favoriteIds.length}
+          </Text>
+        }
+      />
+
+      <SettingRow
+        label="Logout"
+        right={
+          <Pressable
+            style={({ pressed }) => [
+              {
+                paddingVertical: 8,
+                paddingHorizontal: 12,
+                borderRadius: 8,
+                backgroundColor: theme.colors.danger,
+              },
+              pressed && styles.pressedFeedback,
+            ]}
+            onPress={handleLogout}
+            accessibilityRole="button"
+            accessibilityLabel="Esegui logout"
+          >
+            <Text style={{ color: theme.colors.dangerText, fontWeight: "600" }}>Log out</Text>
+          </Pressable>
+        }
+      />
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#fffaf5",
-  },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  avatar: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: "#f2d2a2",
-  },
-  name: { fontSize: 22, fontWeight: "700", color: "#2f2a24" },
-  email: { fontSize: 14, color: "#7a6f65", marginBottom: 18 },
-  button: {
-    alignSelf: "stretch",
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#f0b46e",
-    backgroundColor: "#fff2e2",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  buttonText: { fontWeight: "600", color: "#8a4b12" },
-  logoutButton: {
-    alignSelf: "stretch",
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#e3a39a",
-    backgroundColor: "#fdecea",
-    alignItems: "center",
-    marginTop: 10,
-  },
-  logoutText: { fontWeight: "700", color: "#b42318" },
-});

@@ -1,104 +1,76 @@
-import React from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import MealCard, { type MealCardItem } from "../components/MealCard";
-import { useFavorites } from "../context/FavoritesContext";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, Text, View } from "react-native";
+import MealCard from "../components/MealCard";
+import { useFavorites } from "../context/Context";
+import { useTheme } from "../context/ThemeContext";
+import { createSharedStyles } from "../theme/style";
 import { fetchItalianMeals } from "../services/mealsApi";
-import type { RootStackParamList } from "../App";
 
-type Props = NativeStackScreenProps<RootStackParamList, "Favorites">;
+export default function FavoriteScreen({ navigation }: any) {
+  const { favoriteIds, isLoading } = useFavorites();
+  const { theme } = useTheme();
+  const styles = createSharedStyles(theme);
+  const [meals, setMeals] = useState<any[]>([]);
+  const [loadingMeals, setLoadingMeals] = useState(true);
 
-export default function FavoritesScreen({ navigation }: Props) {
-  const { favoriteIds } = useFavorites();
-  const [allMeals, setAllMeals] = React.useState<MealCardItem[]>([]);
-  const [status, setStatus] = React.useState<"loading" | "success" | "error">(
-    "loading",
-  );
+  useEffect(() => {
+    let isMounted = true;
 
-  React.useEffect(() => {
-    let active = true;
-    setStatus("loading");
-    fetchItalianMeals()
-      .then((data: MealCardItem[]) => {
-        if (active) {
-          setAllMeals(data);
-          setStatus("success");
-        }
-      })
-      .catch(() => {
-        if (active) setStatus("error");
-      });
-    return () => {
-      active = false;
+    const load = async () => {
+      setLoadingMeals(true);
+      const allMeals = await fetchItalianMeals();
+
+      if (!isMounted) return;
+
+      const favorites = allMeals.filter((meal: any) =>
+        favoriteIds.includes(meal.idMeal)
+      );
+
+      setMeals(favorites);
+      setLoadingMeals(false);
     };
-  }, []);
 
-  const favoriteMeals = allMeals.filter((meal) => favoriteIds.includes(meal.idMeal));
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [favoriteIds]);
+
+  if (isLoading || loadingMeals) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (favoriteIds.length === 0) {
+    return (
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyText} maxFontSizeMultiplier={1.4}>
+          Nessun preferito ancora. Tocca ♡ su un piatto dalla lista.
+        </Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>I tuoi preferiti</Text>
-
-      {status === "loading" ? (
-        <View style={styles.centered}>
-          <ActivityIndicator />
-          <Text>Caricamento...</Text>
-        </View>
-      ) : status === "error" ? (
-        <Text style={styles.error}>
-          Caricamento fallito. Controlla la connessione.
-        </Text>
-      ) : favoriteMeals.length === 0 ? (
-        // Edge case richiesto dal lab 17
-        <View style={styles.centered}>
-          <Text style={styles.emptyText}>
-            Nessun preferito ancora. Tocca ♡ su un piatto dalla lista.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={favoriteMeals}
-          keyExtractor={(item) => item.idMeal}
-          contentContainerStyle={{ gap: 4 }}
-          renderItem={({ item }) => (
-            <MealCard
-              item={item}
-              onPress={(idMeal) => navigation.navigate("Detail", { mealId: idMeal })}
-            />
-          )}
-        />
-      )}
+    <View style={styles.screen}>
+      <Text style={styles.screenTitle} accessibilityRole="header" maxFontSizeMultiplier={1.4}>
+        I tuoi preferiti
+      </Text>
+      <FlatList
+        contentContainerStyle={styles.flatListContent}
+        data={meals}
+        keyExtractor={(item) => item.idMeal}
+        renderItem={({ item }) => (
+          <MealCard
+            meal={item}
+            onPress={() => navigation.navigate("Details", { id: item.idMeal })}
+          />
+        )}
+      />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 18,
-    gap: 12,
-    backgroundColor: "#fffaf5",
-  },
-  centered: {
-    flex: 1,
-    padding: 16,
-    gap: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#2f2a24",
-  },
-  error: {
-    color: "#b42318",
-    fontWeight: "600",
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#7a6f65",
-    fontSize: 15,
-    paddingHorizontal: 12,
-  },
-});
