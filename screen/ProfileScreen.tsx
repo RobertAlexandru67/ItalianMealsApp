@@ -1,113 +1,118 @@
-import React, { useState } from "react";
-import { Pressable, Switch, Text, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { SettingRow } from "../components/Setting";
-import { useFavorites } from "../context/Context";
+import React from "react";
+import { Image, Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useAuth } from "../context/AuthContet";
+import { useFavorites } from "../context/FavorieContext";
 import { useTheme } from "../context/ThemeContext";
 import { createSharedStyles } from "../theme/style";
-import { spacing } from "../theme/colors";
+import type { RootStackParamList } from "../App";
 
-type ProfileScreenProps = {
-  navigation: any;
-};
+type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
 
-export default function ProfileScreen({ navigation }: ProfileScreenProps) {
-  const [name, setName] = useState("");
-  const [notifications, setNotifications] = useState(true);
+export default function ProfileScreen({ navigation }: Props) {
+  const { user, logout } = useAuth();
   const { favoriteIds } = useFavorites();
-  const { theme, isDark, toggleTheme } = useTheme();
-  const styles = createSharedStyles(theme);
+  const { theme, mode, toggleTheme } = useTheme();
+  const shared = React.useMemo(() => createSharedStyles(theme), [theme]);
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
 
-  const nameTooShort = name.length > 0 && name.length < 2;
+  if (!user) {
+    return (
+      <View style={shared.centered}>
+        <Text style={{ color: theme.colors.text }}>Nessun utente loggato.</Text>
+      </View>
+    );
+  }
 
   function handleLogout() {
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Login" }],
-    });
+    logout();
   }
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <Text style={styles.screenTitle} accessibilityRole="header" maxFontSizeMultiplier={1.4}>
-        Profilo
+    <View style={styles.container}>
+      <Image source={{ uri: user.avatarUri }} style={styles.avatar} />
+      <Text accessibilityRole="header" style={styles.name}>
+        {user.name}
       </Text>
+      <Text style={styles.email}>{user.email}</Text>
 
-      <SettingRow
-        label="Name"
-        right={
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Your name"
-            placeholderTextColor={theme.colors.textSecondary}
-            style={{
-              borderWidth: 1,
-              borderColor: nameTooShort ? theme.colors.danger : theme.colors.border,
-              borderRadius: 8,
-              padding: 6,
-              width: 140,
-              textAlign: "right",
-              color: theme.colors.text,
-            }}
-          />
-        }
-      />
-      {nameTooShort && (
-        <Text
-          style={{ color: theme.colors.danger, fontSize: 12, paddingHorizontal: spacing.md }}
-        >
-          Name is too short
-        </Text>
-      )}
+      <View style={shared.switchRow}>
+        <Text style={shared.switchLabel}>Tema scuro</Text>
+        <Switch
+          accessibilityLabel="Attiva o disattiva il tema scuro"
+          value={mode === "dark"}
+          onValueChange={toggleTheme}
+        />
+      </View>
 
-      <SettingRow
-        label="Notifications"
-        right={<Switch value={notifications} onValueChange={setNotifications} />}
-      />
+      <View style={shared.switchRow}>
+        <Text style={shared.switchLabel}>Preferiti salvati</Text>
+        <Text style={styles.favCount}>{favoriteIds.length}</Text>
+      </View>
 
-      {/* Lab 19: toggle tema scuro persistito via ThemeContext */}
-      <SettingRow
-        label="Tema scuro"
-        right={
-          <Switch
-            value={isDark}
-            onValueChange={toggleTheme}
-            accessibilityLabel="Attiva o disattiva il tema scuro"
-          />
-        }
-      />
+      <Pressable
+        style={styles.button}
+        onPress={() => navigation.navigate("Home")}
+        accessibilityRole="button"
+        accessibilityLabel="Torna alla lista dei piatti"
+      >
+        <Text style={styles.buttonText}>Torna alla lista</Text>
+      </Pressable>
 
-      <SettingRow
-        label="Preferiti salvati"
-        right={
-          <Text style={{ color: theme.colors.text, fontWeight: "600" }} maxFontSizeMultiplier={1.4}>
-            {favoriteIds.length}
-          </Text>
-        }
-      />
-
-      <SettingRow
-        label="Logout"
-        right={
-          <Pressable
-            style={({ pressed }) => [
-              {
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                borderRadius: 8,
-                backgroundColor: theme.colors.danger,
-              },
-              pressed && styles.pressedFeedback,
-            ]}
-            onPress={handleLogout}
-            accessibilityRole="button"
-            accessibilityLabel="Esegui logout"
-          >
-            <Text style={{ color: theme.colors.dangerText, fontWeight: "600" }}>Log out</Text>
-          </Pressable>
-        }
-      />
-    </SafeAreaView>
+      <Pressable
+        style={styles.logoutButton}
+        onPress={handleLogout}
+        accessibilityRole="button"
+        accessibilityLabel="Esci dall'account"
+      >
+        <Text style={styles.logoutText}>Esci</Text>
+      </Pressable>
+    </View>
   );
+}
+
+function createStyles(theme: import("../theme/colors").Theme) {
+  const { colors } = theme;
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      padding: 24,
+      alignItems: "center",
+      gap: 10,
+      backgroundColor: colors.background,
+    },
+    avatar: {
+      width: 110,
+      height: 110,
+      borderRadius: 55,
+      marginBottom: 12,
+      borderWidth: 2,
+      borderColor: colors.primaryBorder,
+    },
+    name: { fontSize: 22, fontWeight: "700", color: colors.text },
+    email: { fontSize: 14, color: colors.textSecondary, marginBottom: 8 },
+    favCount: { fontWeight: "700", color: colors.primary, fontSize: 16 },
+    button: {
+      alignSelf: "stretch",
+      paddingVertical: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.warning,
+      backgroundColor: colors.warningBackground,
+      alignItems: "center",
+      marginTop: 8,
+    },
+    buttonText: { fontWeight: "600", color: colors.warningText },
+    logoutButton: {
+      alignSelf: "stretch",
+      paddingVertical: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.error,
+      backgroundColor: colors.background,
+      alignItems: "center",
+      marginTop: 10,
+    },
+    logoutText: { fontWeight: "700", color: colors.error },
+  });
 }

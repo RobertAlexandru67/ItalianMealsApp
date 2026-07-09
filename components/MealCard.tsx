@@ -1,44 +1,36 @@
 import React from "react";
 import { Image, Pressable, Text, View } from "react-native";
-import { useTheme } from "../context/ThemeContext";
-import { createSharedStyles } from "../theme/style";
 import FavoriteButton from "./Button";
+import { createSharedStyles } from "../theme/style";
+import { useTheme } from "../context/ThemeContext";
 
-type Props = {
-  meal: { idMeal: string; strMeal: string; strMealThumb: string };
-  onPress: () => void;
-  style?: any;
-};
+export interface MealCardItem {
+  idMeal: string;
+  strMeal: string;
+  strMealThumb: string;
+}
 
-export default function MealCard({ meal, onPress, style }: Props) {
+interface MealCardProps {
+  item: MealCardItem;
+  onPress: (idMeal: string) => void;
+}
+
+export default function MealCard({ item, onPress }: MealCardProps) {
   const { theme } = useTheme();
-  const styles = createSharedStyles(theme);
+  const styles = React.useMemo(() => createSharedStyles(theme), [theme]);
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onPress(item.idMeal)}
       accessibilityRole="button"
-      accessibilityLabel={`Apri ${meal.strMeal}`}
-      style={({ pressed }) => [
-        styles.listItem,
-        style,
-        pressed && styles.pressedFeedback,
-      ]}
+      accessibilityLabel={`Apri ${item.strMeal}`}
+      style={({ pressed }) => [styles.listItem, pressed && styles.pressedFeedback]}
     >
-      <Image source={{ uri: meal.strMealThumb }} style={styles.thumb} />
-      <View style={styles.rowCenter}>
-        <Text
-          style={[styles.listTitle, { paddingHorizontal: 12, paddingVertical: 8 }]}
-          numberOfLines={2}
-          ellipsizeMode="tail"
-          maxFontSizeMultiplier={1.4}
-        >
-          {meal.strMeal}
-        </Text>
-        <View style={{ paddingRight: 8 }}>
-          <FavoriteButton id={meal.idMeal} label={meal.strMeal} />
-        </View>
-      </View>
+      <Image source={{ uri: item.strMealThumb }} style={styles.listItemThumb} />
+      <Text style={styles.listTitle} numberOfLines={2} maxFontSizeMultiplier={1.4}>
+        {item.strMeal}
+      </Text>
+      <FavoriteButton idMeal={item.idMeal} />
     </Pressable>
   );
 }

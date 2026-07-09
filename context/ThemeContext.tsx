@@ -1,65 +1,42 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-} from "react";
-import { AppTheme, lightTheme, darkTheme } from "../theme/colors";
+import React from "react";
+import { darkTheme, lightTheme, type AppTheme, type ThemeMode } from "../theme/colors";
 import { loadThemeMode, saveThemeMode } from "../services/storage";
 
-type ThemeContextType = {
+interface ThemeContextValue {
   theme: AppTheme;
-  isDark: boolean;
-  isLoading: boolean;
-  toggleTheme: () => Promise<void>;
-};
+  mode: ThemeMode;
+  toggleTheme: () => void;
+}
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+const ThemeContext = React.createContext<ThemeContextValue | undefined>(undefined);
 
-export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [isDark, setIsDark] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [mode, setMode] = React.useState<ThemeMode>("light");
 
-  useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
-      const saved = await loadThemeMode();
-      if (mounted) {
-        if (saved) setIsDark(saved === "dark");
-        setIsLoading(false);
-      }
-    };
-
-    load();
-
-    return () => {
-      mounted = false;
-    };
+  React.useEffect(() => {
+    loadThemeMode().then((saved) => {
+      if (saved) setMode(saved);
+    });
   }, []);
 
-  const toggleTheme = async () => {
-    const next = !isDark;
-    setIsDark(next);
-    await saveThemeMode(next ? "dark" : "light");
-  };
-
-  const theme = isDark ? darkTheme : lightTheme;
-
-  return (
-    <ThemeContext.Provider value={{ theme, isDark, isLoading, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
-};
-
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-
-  if (!context) {
-    throw new Error("useTheme must be used inside ThemeProvider");
+  function toggleTheme() {
+    setMode((current) => {
+      const next = current === "light" ? "dark" : "light";
+      saveThemeMode(next);
+      return next;
+    });
   }
 
-  return context;
-};
+  const theme = mode === "dark" ? darkTheme : lightTheme;
+  const value: ThemeContextValue = { theme, mode, toggleTheme };
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+export function useTheme(): ThemeContextValue {
+  const ctx = React.useContext(ThemeContext);
+  if (!ctx) {
+    throw new Error("useTheme deve essere usato dentro un ThemeProvider");
+  }
+  return ctx;
+}

@@ -1,35 +1,36 @@
 import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
-import { useFavorites } from "../context/Context";
+import { useFavorites } from "../context/FavorieContext";
 
-type Props = { id: string; size?: number; label?: string };
+interface FavoriteButtonProps {
+  idMeal: string;
+  size?: number;
+}
 
-export default function FavoriteButton({ id, size = 22, label }: Props) {
+export default function FavoriteButton({ idMeal, size = 18 }: FavoriteButtonProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
-  const fav = isFavorite(id);
-
-  async function handlePress() {
-    await toggleFavorite(id);
-  }
+  const active = isFavorite(idMeal);
 
   return (
     <Pressable
-      onPress={handlePress}
-      style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel={
-        fav
-          ? `Rimuovi ${label ?? "piatto"} dai preferiti`
-          : `Aggiungi ${label ?? "piatto"} ai preferiti`
-      }
+      style={styles.favButton}
+      onPress={() => toggleFavorite(idMeal)}
+      hitSlop={8}
     >
-      <Text style={[styles.icon, { fontSize: size }]}>{fav ? "❤️" : "🤍"}</Text>
+      <Text style={[styles.favText, { fontSize: size }]}>
+        {active ? "♥" : "♡"}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  btn: { padding: 8 },
-  pressed: { opacity: 0.5 },
-  icon: {},
+  favButton: {
+    padding: 8,
+    borderWidth: 1,
+    borderRadius: 999,
+    borderColor: "#f2d2a2",
+    backgroundColor: "#fff7eb",
+  },
+  favText: { color: "#c0392b" },
 });

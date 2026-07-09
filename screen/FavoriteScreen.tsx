@@ -1,76 +1,89 @@
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Text, View } from "react-native";
-import MealCard from "../components/MealCard";
-import { useFavorites } from "../context/Context";
+import React from "react";
+import { ActivityIndicator, FlatList, Text, View, useWindowDimensions } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import MealCard, { type MealCardItem } from "../components/MealCard";
+import { useFavorites } from "../context/FavorieContext";
 import { useTheme } from "../context/ThemeContext";
-import { createSharedStyles } from "../theme/style";
 import { fetchItalianMeals } from "../services/mealsApi";
+import { createSharedStyles } from "../theme/style";
+import type { RootStackParamList } from "../App";
 
-export default function FavoriteScreen({ navigation }: any) {
-  const { favoriteIds, isLoading } = useFavorites();
+type Props = NativeStackScreenProps<RootStackParamList, "Favorites">;
+
+const WIDE_BREAKPOINT = 600;
+
+export default function FavoritesScreen({ navigation }: Props) {
+  const { favoriteIds } = useFavorites();
   const { theme } = useTheme();
-  const styles = createSharedStyles(theme);
-  const [meals, setMeals] = useState<any[]>([]);
-  const [loadingMeals, setLoadingMeals] = useState(true);
+  const styles = React.useMemo(() => createSharedStyles(theme), [theme]);
+  const { width } = useWindowDimensions();
+  const isWide = width >= WIDE_BREAKPOINT;
+  const numColumns = isWide ? 2 : 1;
 
-  useEffect(() => {
-    let isMounted = true;
+  const [allMeals, setAllMeals] = React.useState<MealCardItem[]>([]);
+  const [status, setStatus] = React.useState<"loading" | "success" | "error">(
+    "loading",
+  );
 
-    const load = async () => {
-      setLoadingMeals(true);
-      const allMeals = await fetchItalianMeals();
-
-      if (!isMounted) return;
-
-      const favorites = allMeals.filter((meal: any) =>
-        favoriteIds.includes(meal.idMeal)
-      );
-
-      setMeals(favorites);
-      setLoadingMeals(false);
-    };
-
-    load();
-
+  React.useEffect(() => {
+    let active = true;
+    setStatus("loading");
+    fetchItalianMeals()
+      .then((data: MealCardItem[]) => {
+        if (active) {
+          setAllMeals(data);
+          setStatus("success");
+        }
+      })
+      .catch(() => {
+        if (active) setStatus("error");
+      });
     return () => {
-      isMounted = false;
+      active = false;
     };
-  }, [favoriteIds]);
+  }, []);
 
-  if (isLoading || loadingMeals) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
-
-  if (favoriteIds.length === 0) {
-    return (
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyText} maxFontSizeMultiplier={1.4}>
-          Nessun preferito ancora. Tocca ♡ su un piatto dalla lista.
-        </Text>
-      </View>
-    );
-  }
+  const favoriteMeals = allMeals.filter((meal) => favoriteIds.includes(meal.idMeal));
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.screenTitle} accessibilityRole="header" maxFontSizeMultiplier={1.4}>
+      <Text accessibilityRole="header" style={styles.title}>
         I tuoi preferiti
       </Text>
-      <FlatList
-        contentContainerStyle={styles.flatListContent}
-        data={meals}
-        keyExtractor={(item) => item.idMeal}
-        renderItem={({ item }) => (
-          <MealCard
-            meal={item}
-            onPress={() => navigation.navigate("Details", { id: item.idMeal })}
-          />
-        )}
-      />
+
+      {status === "loading" ? (
+        <View style={styles.centered}>
+          <ActivityIndicator />
+          <Text>Caricamento...</Text>
+        </View>
+      ) : status === "error" ? (
+        <Text style={styles.error}>
+          Caricamento fallito. Controlla la connessione.
+        </Text>
+      ) : favoriteMeals.length === 0 ? (
+        <View style={styles.centered}>
+          <Text style={styles.emptyText}>
+            Nessun preferito ancora. Tocca ♡ su un piatto dalla lista.
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          key={`cols-${numColumns}`}
+          data={favoriteMeals}
+          keyExtractor={(item) => item.idMeal}
+          numColumns={numColumns}
+          columnWrapperStyle={isWide ? styles.columnWrapper : undefined}
+          contentContainerStyle={styles.flatListContent}
+          renderItem={({ item }) => (
+            <View style={styles.gridItem}>
+              <MealCard
+                item={item}
+                onPress={(idMeal) => navigation.navigate("Detail", { mealId: idMeal })}
+              />
+            </View>
+          )}
+        />
+      )}
     </View>
   );
 }

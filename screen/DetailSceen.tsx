@@ -1,81 +1,142 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
-  Text, TouchableOpacity, View,
-  ActivityIndicator, Image, ScrollView,
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { fetchMealById } from "../services/mealsApi";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import FavoriteButton from "../components/Button";
+import { fetchMealById } from "../services/mealsApi";
 import { useTheme } from "../context/ThemeContext";
-import { createSharedStyles } from "../theme/style";
-import { spacing } from "../theme/colors";
+import type { RootStackParamList } from "../App";
 
-export default function DetailScreen({ route, navigation }: any) {
-  const id = route.params?.id;
-  const [status, setStatus] = useState<"loading" | "error" | "success">("loading");
-  const [meal, setMeal] = useState<any>(null);
-  const [message, setMessage] = useState("");
+type Props = NativeStackScreenProps<RootStackParamList, "Detail">;
+
+export default function DetailScreen({ navigation, route }: Props) {
+  const mealId = route.params?.mealId;
   const { theme } = useTheme();
-  const styles = createSharedStyles(theme);
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
 
-  async function loadMeal() {
-    setStatus("loading");
-    try {
-      const data = await fetchMealById(id);
-      if (!data) { setStatus("error"); setMessage("Piatto non trovato"); return; }
-      setMeal(data);
-      setStatus("success");
-    } catch (e: any) {
-      setStatus("error");
-      setMessage(e.message ?? "Errore di rete");
+  const [meal, setMeal] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useLayoutEffect(() => {
+    if (mealId) {
+      navigation.setOptions({
+        headerRight: () => <FavoriteButton idMeal={mealId} size={20} />,
+      });
     }
-  }
+  }, [navigation, mealId]);
 
-  useEffect(() => { loadMeal(); }, [id]);
+  React.useEffect(() => {
+    let active = true;
 
-  if (status === "loading") {
+    async function loadMeal() {
+      setLoading(true);
+      try {
+        const data = await fetchMealById(mealId);
+        if (active) {
+          setMeal(data);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    if (mealId) {
+      loadMeal();
+    } else {
+      setLoading(false);
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [mealId]);
+
+  if (!mealId) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
-
-  if (status === "error") {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.error}>{message}</Text>
-        <TouchableOpacity style={styles.btn} onPress={loadMeal} accessibilityRole="button">
-          <Text style={styles.btnText}>Riprova</Text>
-        </TouchableOpacity>
+      <View style={styles.centered}>
+        <Text style={styles.notFound}>Invalid route param</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ padding: spacing.md }}>
-      <Image source={{ uri: meal.strMealThumb }} style={{ width: "100%", height: 220, borderRadius: 10 }} />
-      <View style={[styles.rowCenter, { marginTop: spacing.sm + spacing.xs }]}>
-        <Text
-          style={[styles.text, { fontSize: 22, fontWeight: "bold", flex: 1, marginRight: spacing.sm }]}
-          accessibilityRole="header"
-          maxFontSizeMultiplier={1.4}
-        >
-          {meal.strMeal}
-        </Text>
-        <FavoriteButton id={meal.idMeal} label={meal.strMeal} />
-      </View>
-      <Text style={styles.sectionTitle}>Istruzioni</Text>
-      <Text style={[styles.textSecondary, { fontSize: 14, lineHeight: 22 }]}>
-        {meal.strInstructions}
-      </Text>
-      <TouchableOpacity
-        style={[styles.btn, { marginTop: spacing.lg }]}
-        onPress={() => navigation.goBack()}
-        accessibilityRole="button"
-        accessibilityLabel="Torna indietro"
-      >
-        <Text style={styles.btnText}>← Torna indietro</Text>
-      </TouchableOpacity>
-    </ScrollView>
+    <View style={styles.container}>
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator />
+          <Text style={styles.sectionTitle}>Caricamento dettaglio...</Text>
+        </View>
+      ) : meal ? (
+        <ScrollView contentContainerStyle={styles.content}>
+          <Image source={{ uri: meal.strMealThumb }} style={styles.image} />
+          <Text
+            accessibilityRole="header"
+            style={styles.title}
+            maxFontSizeMultiplier={1.4}
+          >
+            {meal.strMeal}
+          </Text>
+          <Text style={styles.sectionTitle}>Categoria</Text>
+          <Text style={styles.body}>{meal.strCategory}</Text>
+          <Text style={styles.sectionTitle}>Area</Text>
+          <Text style={styles.body}>{meal.strArea}</Text>
+          <Text style={styles.sectionTitle}>Istruzioni</Text>
+          <Text style={styles.instructions}>{meal.strInstructions}</Text>
+        </ScrollView>
+      ) : (
+        <Text style={styles.notFound}>Product not found</Text>
+      )}
+    </View>
   );
+}
+
+function createStyles(theme: import("../theme/colors").Theme) {
+  const { colors } = theme;
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      padding: 16,
+      backgroundColor: colors.background,
+    },
+    centered: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 8,
+    },
+    content: { gap: 10, paddingBottom: 24 },
+    image: {
+      width: "100%",
+      height: 220,
+      borderRadius: 16,
+      marginBottom: 8,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    sectionTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+      marginTop: 6,
+      color: colors.textSecondary,
+    },
+    body: {
+      color: colors.text,
+    },
+    instructions: {
+      lineHeight: 20,
+      color: colors.text,
+    },
+    notFound: { padding: 16, color: colors.textSecondary },
+  });
 }

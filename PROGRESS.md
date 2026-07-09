@@ -8,13 +8,13 @@
 
 | Schermata      | Stato   | Screenshot                                          |
 | -------------- | ------- | --------------------------------------------------- |
-| Login          | ✅      | ![Login](./docs/screenshots/01-login.png)           |
-| Header profilo | ✅      | ![Profilo](./docs/screenshots/02-profile.png)       |
-| Lista piatti   | ✅      | ![Lista](./docs/screenshots/03-list.png)            |
+| Login          | ✅      | ![Login](./screenshot/login.png)           |
+| Header profilo | ✅      | ![Profilo](./screenshot/profilo.png)       |
+| Lista piatti   | ✅      | ![Lista](./screenshot/lista.png)            |
 | Ricerca        | ✅      | ![Ricerca](./docs/screenshots/04-search.png)        |
-| Dettaglio      | ✅      | ![Dettaglio](./docs/screenshots/05-detail.png)      |
-| Preferiti      | ✅      | ![Preferiti](./docs/screenshots/06-favorites.png)   |
-| Impostazioni   | ✅      | ![Impostazioni](./docs/screenshots/07-settings.png) |
+| Dettaglio      | ✅      | ![Dettaglio](./screenshot/dettaglio.png)      |
+| Preferiti      | ✅      | ![Preferiti](./screenshot/preferiti.png)   |
+| Impostazioni   | ✅      | ![Impostazioni](./screenshot/profilo.png) |
 | Errore + Retry | ✅      | ![Errore](./docs/screenshots/08-error.png)          |
 | Deep link      | ✅      | ![Deep link](./docs/screenshots/09-deeplink.png)    |
 
